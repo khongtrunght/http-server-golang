@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"strings"
+
 	// Uncomment this block to pass the first stage
 	"net"
 	"os"
@@ -31,20 +35,42 @@ func main() {
 
 		go func(conn net.Conn) {
 			defer conn.Close()
-			buf := make([]byte, 1024)
-			n, err := conn.Read(buf)
+			reader := bufio.NewReader(conn)
+			requestLine, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Printf("Error reading from connection: %v", err)
+				log.Println("Error reading request line: ", err.Error())
 				return
 			}
+			fmt.Printf("Request: %s", requestLine)
+			// Parse the request line
+			var method, path, protocol string
+			fmt.Sscanf(requestLine, "%s %s %s", &method, &path, &protocol)
+			fmt.Printf("Method: %s, Path: %s, Protocol: %s\n", method, path, protocol)
 
-			// get resourse path
-			var path string
-			fmt.Sscanf(string(buf[:n]), "GET %s HTTP/1.1", &path)
+			httpHeaders := make(map[string]string)
+			for {
+				headerLine, err := reader.ReadString('\n')
+				if err != nil {
+					log.Println("Error reading header line: ", err.Error())
+					return
+				}
+				if headerLine == CRLF {
+					break
+				}
+				fmt.Printf("Header: %s", headerLine)
+				var headerName, headerValue string
+				fmt.Sscanf(headerLine, "%s: %s", &headerName, &headerValue)
+				httpHeaders[headerName] = headerValue
+			}
+
+			// Respond to the request
 			if path == "/" {
 				conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + CRLF))
+			} else if strings.HasPrefix(path, "/echo/") {
+				var contentString string
+				fmt.Sscanf(path, "/echo/%s", &contentString)
+				conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain" + CRLF + CRLF + contentString))
 			} else {
-				// 404
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 			}
 		}(conn)
