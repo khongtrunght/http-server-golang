@@ -72,6 +72,10 @@ func main() {
 				contentLength := len(contentString)
 				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
 				conn.Write([]byte(returnString))
+			} else if path == "/user-agent" {
+				userAgent := httpHeaders["User-Agent"]
+				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, len(userAgent), CRLF+CRLF, userAgent)
+				conn.Write([]byte(returnString))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 			}
