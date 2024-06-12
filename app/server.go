@@ -69,7 +69,8 @@ func main() {
 			} else if strings.HasPrefix(path, "/echo/") {
 				var contentString string
 				fmt.Sscanf(path, "/echo/%s", &contentString)
-				conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain" + CRLF + CRLF + contentString))
+				contentLength := len(contentString)
+				conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK%sContent-Length: %d%s%s", CRLF, contentLength, CRLF, contentString)))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 			}
