@@ -54,13 +54,25 @@ func main() {
 					log.Println("Error reading header line: ", err.Error())
 					return
 				}
-				if headerLine == CRLF {
+				headerLine = strings.TrimSuffix(headerLine, CRLF)
+				if headerLine == "" {
 					break
 				}
-				fmt.Printf("Header: %s", headerLine)
-				var headerName, headerValue string
-				fmt.Sscanf(headerLine, "%s: %s", &headerName, &headerValue)
+				fmt.Printf("Header: %q\n", headerLine)
+				parts := strings.SplitN(headerLine, ":", 2)
+				if len(parts) != 2 {
+					log.Println("Invalid header line:", headerLine)
+					continue
+				}
+
+				headerName := strings.TrimSpace(parts[0])
+				headerValue := strings.TrimSpace(parts[1])
 				httpHeaders[headerName] = headerValue
+			}
+
+			// print all headers
+			for key, value := range httpHeaders {
+				fmt.Printf("Header: %q: %q\n", key, value)
 			}
 
 			// Respond to the request
