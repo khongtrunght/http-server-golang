@@ -70,8 +70,8 @@ func main() {
 				var contentString string
 				fmt.Sscanf(path, "/echo/%s", &contentString)
 				contentLength := len(contentString)
-				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF + CRLF, contentString)
-				conn.
+				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
+				conn.Write([]byte(returnString))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 			}
