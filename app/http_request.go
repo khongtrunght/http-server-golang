@@ -206,7 +206,9 @@ func (r *ResponseBuilder) SetBody(body []byte) *ResponseBuilder {
 }
 
 func (r *ResponseBuilder) Build() io.WriterTo {
-	return Response{}
+	return Response{
+		data: r.data,
+	}
 }
 
 type BuilderOption func(*ResponseBuilder)
