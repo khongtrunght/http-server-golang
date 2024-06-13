@@ -50,56 +50,13 @@ func main() {
 				log.Println("Error parsing request: ", err.Error())
 				return
 			}
-			// reader := bufio.NewReader(conn)
-			// requestLine, err := reader.ReadString('\n')
-			// if err != nil {
-			// 	log.Println("Error reading request line: ", err.Error())
-			// 	return
-			// }
-			// fmt.Printf("Request: %s", requestLine)
-			// // Parse the request line
-			// var method, path, protocol string
-			// fmt.Sscanf(requestLine, "%s %s %s", &method, &path, &protocol)
-			// fmt.Printf("Method: %s, Path: %s, Protocol: %s\n", method, path, protocol)
-			//
-			// httpHeaders := make(map[string]string)
-			// for {
-			// 	headerLine, err := reader.ReadString('\n')
-			// 	if err != nil {
-			// 		log.Println("Error reading header line: ", err.Error())
-			// 		return
-			// 	}
-			// 	headerLine = strings.TrimSuffix(headerLine, CRLF)
-			// 	if headerLine == "" {
-			// 		break
-			// 	}
-			// 	fmt.Printf("Header: %q\n", headerLine)
-			// 	parts := strings.SplitN(headerLine, ":", 2)
-			// 	if len(parts) != 2 {
-			// 		log.Println("Invalid header line:", headerLine)
-			// 		continue
-			// 	}
-			//
-			// 	headerName := strings.TrimSpace(parts[0])
-			// 	headerValue := strings.TrimSpace(parts[1])
-			// 	headerName = strings.ToLower(headerName)
-			// 	httpHeaders[headerName] = headerValue
-			// }
-			// // print all headers
-			// for key, value := range httpHeaders {
-			// 	fmt.Printf("Header: %q: %q\n", key, value)
-			// }
 
-			// Respond to the request
-			// if path == "/" {
 			if request.Path() == "/" {
 				conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + CRLF))
-				// } else if strings.HasPrefix(path, "/echo/") {
 			} else if request.RouteTo("/echo/") {
 				var contentString string
 				fmt.Sscanf(request.Path(), "/echo/%s", &contentString)
 				contentLength := len(contentString)
-				// if _, ok := httpHeaders[ACCEPT_ENCODING]; ok && (httpHeaders[ACCEPT_ENCODING] == "gzip") {
 				if value, ok := request.HeaderGet(ACCEPT_ENCODING); ok && (value == "gzip") {
 					conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain" + CRLF + "Content-Encoding: gzip" + CRLF + "Content-Length: " + strconv.Itoa(contentLength) + CRLF + CRLF + contentString))
 				} else {
@@ -139,7 +96,6 @@ func main() {
 						return
 					}
 
-					// write to file
 					_, err = file.Write(request.Data())
 					if err != nil {
 						conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
