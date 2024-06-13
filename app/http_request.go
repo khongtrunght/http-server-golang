@@ -120,16 +120,100 @@ func ParseRequest(reader io.Reader) (RequestInterface, error) {
 	}, nil
 }
 
-type ResponseInterface interface{}
+type responseData struct {
+	status   int
+	headers  map[string]string
+	body     []byte
+	protocol string
+}
 
-type Response struct{}
+type Response struct {
+	data *responseData
+}
+
+var StatusMap = map[int]string{
+	200: "OK",
+	404: "Not Found",
+	500: "Internal Server Error",
+}
+
+func StatusText(status int) string {
+	if text, ok := StatusMap[status]; ok {
+		return text
+	}
+	return "Unknown"
+}
+
+func (r Response) WriteTo(writer io.Writer) (int64, error) {
+	// writer.Write([]byte(fmt.Sprintf("%s %d %s", r.data.protocol, r.data.status, StatusText(r.data.status)))
+	writer.Write([]byte(fmt.Sprintf("%s %d %s", r.data.protocol, r.data.status, StatusText(r.data.status))))
+	writer.Write([]byte(CRLF))
+	for key, value := range r.data.headers {
+		writer.Write([]byte(fmt.Sprintf("%s: %s", key, value)))
+		writer.Write([]byte(CRLF))
+	}
+	writer.Write([]byte(CRLF))
+	writer.Write(r.data.body)
+	return 0, nil
+}
 
 type ResponseBuilderInterface interface {
-	SetProtocol(protocol string)
-	SetStatus(status int)
-	SetHeader(key, value string)
-	SetBody(body []byte)
-	Build() ResponseInterface
+	SetProtocol(protocol string) *ResponseBuilder
+	SetStatus(status int) *ResponseBuilder
+	SetHeader(key, value string) *ResponseBuilder
+	SetBody(body []byte) *ResponseBuilder
+	Build() io.WriterTo
+}
+
+type ResponseBuilder struct {
+	data *responseData
+}
+
+func (r *ResponseBuilder) SetProtocol(protocol string) *ResponseBuilder {
+	r.data.protocol = protocol
+	return r
+}
+
+func (r *ResponseBuilder) SetStatus(status int) *ResponseBuilder {
+	r.data.status = status
+	return r
+}
+
+func (r *ResponseBuilder) SetHeader(key, value string) *ResponseBuilder {
+	r.data.headers[key] = value
+	return r
+}
+
+func (r *ResponseBuilder) SetBody(body []byte) *ResponseBuilder {
+	r.data.body = body
+	return r
+}
+
+func (r *ResponseBuilder) Build() io.WriterTo {
+	return Response{}
+}
+
+type BuilderOption func(*ResponseBuilder)
+
+func WithProtocol(protocol string) BuilderOption {
+	return func(builder *ResponseBuilder) {
+		builder.data.protocol = protocol
+	}
+}
+
+func NewResponseBuilder(options ...BuilderOption) ResponseBuilderInterface {
+	builder := ResponseBuilder{
+		data: &responseData{
+			headers:  make(map[string]string),
+			protocol: "HTTP/1.1",
+		},
+	}
+
+	for _, option := range options {
+		option(&builder)
+	}
+
+	return &builder
 }
 
 type Request struct {
