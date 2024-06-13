@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"log"
@@ -133,7 +135,9 @@ type Response struct {
 
 var StatusMap = map[int]string{
 	200: "OK",
+	201: "Created",
 	404: "Not Found",
+	405: "Method Not Allowed",
 	500: "Internal Server Error",
 }
 
@@ -148,12 +152,24 @@ func (r Response) WriteTo(writer io.Writer) (int64, error) {
 	// writer.Write([]byte(fmt.Sprintf("%s %d %s", r.data.protocol, r.data.status, StatusText(r.data.status)))
 	writer.Write([]byte(fmt.Sprintf("%s %d %s", r.data.protocol, r.data.status, StatusText(r.data.status))))
 	writer.Write([]byte(CRLF))
+
+	var buf bytes.Buffer
+	if r.data.body != nil {
+		if r.data.headers["Content-Encoding"] == "gzip" {
+			gzipWriter := gzip.NewWriter(&buf)
+			gzipWriter.Write(r.data.body)
+			gzipWriter.Close()
+		} else {
+			buf.Write(r.data.body)
+		}
+		r.data.headers["Content-Length"] = strconv.Itoa(len(buf.Bytes()))
+	}
 	for key, value := range r.data.headers {
 		writer.Write([]byte(fmt.Sprintf("%s: %s", key, value)))
 		writer.Write([]byte(CRLF))
 	}
 	writer.Write([]byte(CRLF))
-	writer.Write(r.data.body)
+	writer.Write(buf.Bytes())
 	return 0, nil
 }
 
