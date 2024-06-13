@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"strings"
@@ -14,6 +15,9 @@ import (
 const CRLF = "\r\n"
 
 func main() {
+	// read --directory /tmp/ in flag
+	directory := flag.String("directory", "/tmp/", "the directory to serve files from")
+	flag.Parse()
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
@@ -87,6 +91,26 @@ func main() {
 			} else if path == "/user-agent" {
 				userAgent := httpHeaders["User-Agent"]
 				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, len(userAgent), CRLF+CRLF, userAgent)
+				conn.Write([]byte(returnString))
+			} else if strings.HasPrefix(path, "/files/") {
+				fileName := strings.TrimPrefix(path, "/files/")
+				filePath := *directory + fileName
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
+					return
+				}
+				file, err := os.Open(filePath)
+				if err != nil {
+					conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
+					return
+				}
+				var contentString string
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					contentString += scanner.Text()
+				}
+				contentLength := len(contentString)
+				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: application/octet-stream%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
 				conn.Write([]byte(returnString))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
