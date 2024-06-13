@@ -14,7 +14,12 @@ import (
 	"os"
 )
 
-const CRLF = "\r\n"
+const (
+	CRLF            = "\r\n"
+	CONTENT_LENGTH  = "content-length"
+	ACCEPT_ENCODING = "accept-encoding"
+	USER_AGENT      = "user-agent"
+)
 
 func main() {
 	// read --directory /tmp/ in flag
@@ -73,6 +78,7 @@ func main() {
 
 				headerName := strings.TrimSpace(parts[0])
 				headerValue := strings.TrimSpace(parts[1])
+				headerName = strings.ToLower(headerName)
 				httpHeaders[headerName] = headerValue
 			}
 			// print all headers
@@ -87,16 +93,20 @@ func main() {
 				var contentString string
 				fmt.Sscanf(path, "/echo/%s", &contentString)
 				contentLength := len(contentString)
-				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
-				conn.Write([]byte(returnString))
+				if _, ok := httpHeaders[ACCEPT_ENCODING]; ok && (httpHeaders[ACCEPT_ENCODING] == "gzip") {
+					conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain" + CRLF + "Content-Encoding: gzip" + CRLF + "Content-Length: " + strconv.Itoa(contentLength) + CRLF + CRLF + contentString))
+				} else {
+					returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
+					conn.Write([]byte(returnString))
+				}
 			} else if path == "/user-agent" {
-				userAgent := httpHeaders["User-Agent"]
+				userAgent := httpHeaders[USER_AGENT]
 				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, len(userAgent), CRLF+CRLF, userAgent)
 				conn.Write([]byte(returnString))
 			} else if strings.HasPrefix(path, "/files/") {
 				fileName := strings.TrimPrefix(path, "/files/")
 				filePath := *directory + fileName
-				if strings.ToUpper(method) == "GET" {
+				if strings.ToLower(method) == "get" {
 					if _, err := os.Stat(filePath); os.IsNotExist(err) {
 						conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 						return
@@ -114,7 +124,7 @@ func main() {
 					contentLength := len(contentString)
 					returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: application/octet-stream%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
 					conn.Write([]byte(returnString))
-				} else if strings.ToUpper(method) == "POST" {
+				} else if strings.ToLower(method) == "post" {
 					// open or create file
 					file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
 					if err != nil {
@@ -124,7 +134,7 @@ func main() {
 
 					// data read to end
 					var dataRaw []byte
-					contentLength, err := strconv.Atoi(httpHeaders["Content-Length"])
+					contentLength, err := strconv.Atoi(httpHeaders[CONTENT_LENGTH])
 					if err == nil {
 						dataRaw = make([]byte, contentLength)
 						_, err = io.ReadFull(reader, dataRaw)
