@@ -57,7 +57,7 @@ func main() {
 				var contentString string
 				fmt.Sscanf(request.Path(), "/echo/%s", &contentString)
 				contentLength := len(contentString)
-				if value, ok := request.HeaderGet(ACCEPT_ENCODING); ok && (value == "gzip") {
+				if request.CheckEncoding("gzip") {
 					conn.Write([]byte("HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain" + CRLF + "Content-Encoding: gzip" + CRLF + "Content-Length: " + strconv.Itoa(contentLength) + CRLF + CRLF + contentString))
 				} else {
 					returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: text/plain%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)

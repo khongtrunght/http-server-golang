@@ -27,6 +27,7 @@ type RequestInterface interface {
 	IsGet() bool
 	ContentLength() int
 	Data() []byte
+	CheckEncoding(encoding string) bool
 }
 
 func (m Method) String() string {
@@ -174,6 +175,18 @@ func (r *Request) ContentLength() int {
 		return contentLength
 	}
 	return 0
+}
+
+func (r *Request) CheckEncoding(encoding string) bool {
+	if value, ok := r.headers[ACCEPT_ENCODING]; ok {
+		listEncodings := strings.Split(value, ",")
+		for _, enc := range listEncodings {
+			if strings.TrimSpace(strings.ToLower(enc)) == strings.ToLower(encoding) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *Request) Data() []byte {
