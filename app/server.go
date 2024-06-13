@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"strconv"
 	"strings"
 
 	// Uncomment this block to pass the first stage
@@ -73,7 +75,6 @@ func main() {
 				headerValue := strings.TrimSpace(parts[1])
 				httpHeaders[headerName] = headerValue
 			}
-
 			// print all headers
 			for key, value := range httpHeaders {
 				fmt.Printf("Header: %q: %q\n", key, value)
@@ -95,23 +96,58 @@ func main() {
 			} else if strings.HasPrefix(path, "/files/") {
 				fileName := strings.TrimPrefix(path, "/files/")
 				filePath := *directory + fileName
-				if _, err := os.Stat(filePath); os.IsNotExist(err) {
-					conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
-					return
+				if strings.ToUpper(method) == "GET" {
+					if _, err := os.Stat(filePath); os.IsNotExist(err) {
+						conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
+						return
+					}
+					file, err := os.Open(filePath)
+					if err != nil {
+						conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
+						return
+					}
+					var contentString string
+					scanner := bufio.NewScanner(file)
+					for scanner.Scan() {
+						contentString += scanner.Text()
+					}
+					contentLength := len(contentString)
+					returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: application/octet-stream%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
+					conn.Write([]byte(returnString))
+				} else if strings.ToUpper(method) == "POST" {
+					// open or create file
+					file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+					if err != nil {
+						conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
+						return
+					}
+
+					// data read to end
+					var dataRaw []byte
+					contentLength, err := strconv.Atoi(httpHeaders["Content-Length"])
+					if err == nil {
+						dataRaw = make([]byte, contentLength)
+						_, err = io.ReadFull(reader, dataRaw)
+						if err != nil {
+							log.Println("Error reading data: ", err.Error())
+							return
+						}
+						log.Println("Data: ", string(dataRaw))
+					} else {
+						log.Println("Error reading data: ", "Content-Length not found")
+					}
+
+					// write to file
+					_, err = file.Write(dataRaw)
+					if err != nil {
+						conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
+						return
+					}
+					conn.Write([]byte("HTTP/1.1 201 Created" + CRLF + CRLF))
+
+				} else {
+					conn.Write([]byte("HTTP/1.1 405 Method Not Allowed" + CRLF + CRLF))
 				}
-				file, err := os.Open(filePath)
-				if err != nil {
-					conn.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF + CRLF))
-					return
-				}
-				var contentString string
-				scanner := bufio.NewScanner(file)
-				for scanner.Scan() {
-					contentString += scanner.Text()
-				}
-				contentLength := len(contentString)
-				returnString := fmt.Sprintf("HTTP/1.1 200 OK%sContent-Type: application/octet-stream%sContent-Length: %d%s%s", CRLF, CRLF, contentLength, CRLF+CRLF, contentString)
-				conn.Write([]byte(returnString))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found" + CRLF + CRLF))
 			}
